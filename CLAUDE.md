@@ -32,7 +32,13 @@ Freenove FNK0100 ケースキット（Raspberry Pi 5 対応）の制御ソフト
 1. 作業用ブランチを作成: `git checkout -b claude/<説明的な名前>`
 2. 変更をコミット: `git add <files> && git commit -m "<type>: <説明>"`
 3. プッシュ: `git push origin HEAD`
-4. PR 作成: `gh pr create --title "..." --body "..."`
+4. PR 作成: **必ず `--repo Ken-M/Freenove_Computer_Case_Kit_for_Raspberry_Pi` を指定すること**
+   ```
+   gh pr create --repo Ken-M/Freenove_Computer_Case_Kit_for_Raspberry_Pi \
+     --base main --head <ブランチ名> \
+     --title "..." --body "..."
+   ```
+   - upstream（Freenove/Freenove_Computer_Case_Kit_for_Raspberry_Pi）へ誤って送らないこと
 5. `main` ブランチへの直接コミットは禁止
 
 コミットメッセージは Conventional Commits 形式（`fix:`, `feat:`, `docs:`, `refactor:` 等）を使用。

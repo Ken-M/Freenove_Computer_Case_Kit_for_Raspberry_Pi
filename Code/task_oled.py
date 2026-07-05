@@ -79,7 +79,7 @@ class OLED_TASK:
         try:
             return self.expansion.get_fan_duty()
         except Exception as e:
-            return 0
+            return [0, 0, 0]  # callers index into this list
 
     def get_computer_led_mode(self):
         # Get the computer LED mode using Expansion object
@@ -380,8 +380,15 @@ class OLED_TASK:
         oled_counter = 0  # Counter to control OLED update frequency
         screen_start_time = time.time()  # Record the start time of current screen
         current_screen = 0  # Current screen index
+        last_config_reload = time.monotonic()
 
         while self.running:
+            # get_value() serves from cache, so re-read the file periodically
+            # to pick up UI changes without a task restart
+            if time.monotonic() - last_config_reload >= 3.0:
+                self.config_manager.load_config()
+                last_config_reload = time.monotonic()
+
             # Update data every 0.3 seconds
             current_date = self.system_information.get_raspberry_pi_date()
             current_weekday = self.system_information.get_raspberry_pi_weekday()

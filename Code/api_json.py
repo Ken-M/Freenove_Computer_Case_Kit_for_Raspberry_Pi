@@ -52,10 +52,13 @@ class ConfigManager:
             if directory:
                 os.makedirs(directory, exist_ok=True)
                 
+            # Locking the temp file is pointless (no other process opens it);
+            # atomic rename after fsync is what keeps readers consistent.
             temp_file = self.config_file + '.tmp'
             with open(temp_file, 'w', encoding='utf-8') as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  
                 json.dump(self.config_data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
             os.rename(temp_file, self.config_file)
         except Exception as e:
             print(f"Error saving configuration file: {e}")

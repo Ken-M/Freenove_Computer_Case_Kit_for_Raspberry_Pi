@@ -1,5 +1,5 @@
 from api_expansion import Expansion
-from power_state import get_power_reading
+from power_state import get_power_state
 
 import atexit
 import json
@@ -80,33 +80,34 @@ class LED_TASK:
     def __init__(self):
         self.expansion = None
         self.running = True
+        self._cleaned = False
 
         try:
             self.expansion = Expansion()
         except Exception as e:
+            print(f"[task_led] failed to initialize expansion board: {e}", flush=True)
             sys.exit(1)
 
-        atexit.register(self.handle_signal)
+        atexit.register(self.cleanup)
         signal.signal(signal.SIGTERM, self.handle_signal)
         signal.signal(signal.SIGINT, self.handle_signal)
 
     def handle_signal(self, signum=None, frame=None):
+        # Only flag here: doing I2C cleanup inside the handler races with the
+        # main loop, which lazily reopens the bus and can leave the LEDs lit.
+        self.running = False
+
+    def cleanup(self):
+        if self._cleaned:
+            return
+        self._cleaned = True
         try:
             if self.expansion:
                 self.expansion.set_led_mode(_HW_CLOSE)
-        except Exception as e:
-            print(e)
-        try:
-            if self.expansion:
                 self.expansion.set_all_led_color(0, 0, 0)
-        except Exception as e:
-            print(e)
-        try:
-            if self.expansion:
                 self.expansion.end()
         except Exception as e:
-            print(e)
-        self.running = False
+            print(f"[task_led] cleanup error: {e}", flush=True)
 
     def run_led_loop(self):
         """Main loop: reads LED.mode from app_config.json every 3 s and dispatches accordingly.
@@ -117,13 +118,17 @@ class LED_TASK:
         mode 3 (Manual)   → power-based dynamic color (custom: water-blue→red by wattage)
         mode 4 (Custom)   → same power-based logic as mode 3
         mode 5 (Close)    → LEDs off
+
+        Power-mode status indication:
+        network down            → red blink
+        Redis down / data stale → yellow blink
         """
         config = _read_config()
         last_config_read = time.monotonic()
 
         # power-mode state
         blink_on = False
-        online = True
+        power_status = 'ok'   # 'ok' | 'offline' | 'stale'
         power_r, power_g, power_b = _COLOR_LOW
         last_power_check = 0.0
 
@@ -180,16 +185,25 @@ class LED_TASK:
 
                     if now - last_power_check >= 3.0:
                         last_power_check = now
-                        online = _is_network_connected()
-                        if online:
-                            watts = get_power_reading()
+                        watts, fresh = get_power_state()
+                        if not _is_network_connected():
+                            power_status = 'offline'
+                        elif watts is None or not fresh:
+                            power_status = 'stale'  # Redis down or reading older than 60 s
+                        else:
+                            power_status = 'ok'
                             power_r, power_g, power_b = _power_to_color(watts)
-                            blink_on = False
-                            self.expansion.set_all_led_color(power_r, power_g, power_b)
 
-                    if not online:
+                    if power_status == 'ok':
+                        self.expansion.set_all_led_color(power_r, power_g, power_b)
+                    else:
                         blink_on = not blink_on
-                        br, bg, bb = (255, 0, 0) if blink_on else (0, 0, 0)
+                        if not blink_on:
+                            br, bg, bb = (0, 0, 0)
+                        elif power_status == 'offline':
+                            br, bg, bb = (255, 0, 0)
+                        else:
+                            br, bg, bb = (255, 255, 0)
                         self.expansion.set_all_led_color(br, bg, bb)
 
                     time.sleep(0.5)
@@ -205,6 +219,8 @@ class LED_TASK:
 
         except KeyboardInterrupt:
             pass
+
+        self.cleanup()
 
 
 if __name__ == "__main__":

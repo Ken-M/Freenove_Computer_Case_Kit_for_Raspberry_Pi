@@ -20,8 +20,16 @@ Freenove FNK0100 ケースキット（Raspberry Pi 5 対応）の制御ソフト
     ├── api_oled.py         # OLED ディスプレイAPI
     ├── api_systemInfo.py   # CPU温度・メモリ等システム情報取得
     ├── api_json.py         # app_config.json 読み書きラッパー
-    ├── app_ui.py           # メインGUI（tkinter）
+    ├── api_service.py      # systemd サービス（my_app_running.service）生成・管理
+    ├── app_ui.py           # メインGUI（PyQt5）
+    ├── app_ui_fan.py       # ファン設定タブUI
+    ├── app_ui_led.py       # LED設定タブUI
+    ├── app_ui_monitor.py   # モニタータブUI
+    ├── app_ui_oled.py      # OLED設定タブUI
+    ├── app_ui_setting.py   # 全般設定タブUI
     ├── app_config.json     # 設定ファイル（LED/Fan/OLED設定を永続化）
+    ├── create_desktop_shortcut.py  # デスクトップショートカット作成
+    ├── run_app.sh          # GUI 起動スクリプト
     └── power_state.py      # Redis経由で電力消費量を取得
 ```
 
@@ -65,6 +73,7 @@ Freenove FNK0100 ケースキット（Raspberry Pi 5 対応）の制御ソフト
 - **素子**: WS2812B（RGB）
 - **電力連動グラデーション**: 500W → 5000W を対数スケールで cyan → red へ変化
 - **モード**: app_config.json の `LED.mode` で切替
+- **異常表示（電力連動モード時）**: ネットワーク断 = 赤点滅 / Redis 停止または電力データが60秒以上未更新 = 黄点滅
 
 ### OLED（task_oled.py）
 

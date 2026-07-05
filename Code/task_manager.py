@@ -30,8 +30,8 @@ class TaskManager:
         self.expansion = Expansion()
         led_config = self.config_manager.get_section('LED')
         fan_config = self.config_manager.get_section('Fan')
-        self.send_led_mode_to_expansion(led_config['mode'])
-        self.send_fan_mode_to_expansion(fan_config['mode'])
+        self.send_led_mode_to_expansion(led_config.get('mode', 0))
+        self.send_fan_mode_to_expansion(fan_config.get('mode', 0))
         
         atexit.register(self.handle_signal)
         signal.signal(signal.SIGTERM, self.handle_signal)
@@ -46,7 +46,8 @@ class TaskManager:
             self.expansion.set_led_mode(3)
         elif led_mode == 2:
             self.expansion.set_led_mode(2)
-        elif led_mode == 3:
+        elif led_mode in (3, 4):
+            # Manual / Custom: task_led drives colors via hardware RGB mode
             self.expansion.set_led_mode(1)
         elif led_mode == 5:
             self.expansion.set_led_mode(0)
@@ -59,7 +60,7 @@ class TaskManager:
             if mode == 0:
                 low  = fan_config.get('mode2_low_temp_threshold', 30)
                 high = fan_config.get('mode2_high_temp_threshold', 50)
-                self.expansion.set_fan_frequency(50000)
+                self.expansion.set_fan_frequency(50)  # FNK0100 requires 50 Hz, not 50000
                 self.expansion.set_fan_temp_mode_threshold(low, high)
                 self.expansion.set_fan_mode(2)
             elif mode == 1:

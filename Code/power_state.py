@@ -1,5 +1,6 @@
 import json
 import datetime
+import time
 
 try:
     import redis as _redis_module
@@ -8,6 +9,9 @@ except ImportError:
     _REDIS_AVAILABLE = False
 
 _client = None
+_STALE_SECONDS = 60
+_last_raw = None
+_last_raw_change = None
 _RATE_NIGHT = 22.98  # 平日23:00-6:00, 休日22:00-8:00
 _RATE_DAY   = 20.05  # 平日9:00-16:00, 休日8:00-22:00
 _RATE_LIFE  = 32.65  # 平日6:00-9:00 および 16:00-23:00（ライフタイム）
@@ -24,19 +28,36 @@ def _get_client():
     return _client
 
 
-def get_power_reading():
-    """Return current power consumption in watts from Redis, or None on failure."""
+def get_power_state():
+    """Return (watts, is_fresh) from Redis.
+
+    watts is None when Redis is unavailable or the payload is unreadable.
+    is_fresh is False in that case, and also when the raw payload has not
+    changed for _STALE_SECONDS (the meter publisher includes a timestamp in
+    the payload, so a live feed changes on every update).
+    """
+    global _last_raw, _last_raw_change
     client = _get_client()
     if client is None:
-        return None
+        return None, False
     try:
         raw = client.get('my_key')
         if raw is None:
-            return None
+            return None, False
+        now = time.monotonic()
+        if raw != _last_raw:
+            _last_raw = raw
+            _last_raw_change = now
         data = json.loads(raw)
-        return float(data['POWER']['value'])
+        watts = float(data['POWER']['value'])
+        return watts, (now - _last_raw_change) <= _STALE_SECONDS
     except Exception:
-        return None
+        return None, False
+
+
+def get_power_reading():
+    """Return current power consumption in watts from Redis, or None on failure."""
+    return get_power_state()[0]
 
 
 def get_current_rate_yen_per_kwh():

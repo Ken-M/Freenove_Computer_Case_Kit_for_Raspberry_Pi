@@ -59,7 +59,7 @@ class TaskManager:
             if mode == 0:
                 low  = fan_config.get('mode2_low_temp_threshold', 30)
                 high = fan_config.get('mode2_high_temp_threshold', 50)
-                self.expansion.set_fan_frequency(50000)
+                self.expansion.set_fan_frequency(50)  # FNK0100 requires 50 Hz, not 50000
                 self.expansion.set_fan_temp_mode_threshold(low, high)
                 self.expansion.set_fan_mode(2)
             elif mode == 1:

@@ -230,12 +230,8 @@ class OLED_TASK:
         self.oled.draw_circle_with_percentage(disk_circle_pos, 16, disk_usage, outline="white", fill="white")
         self.oled.show()
 
-    def oled_ui_3_show(self, pi_temperature, cpu_temperature):
+    def oled_ui_3_show(self, cpu_temperature, case_temperature):
         self.oled.clear()
-
-        # Convert temperature to Fahrenheit
-        cpu_fahrenheit = round(cpu_temperature * 1.8 + 32)
-        pi_fahrenheit = round(pi_temperature * 1.8 + 32)
 
         # Draw basic interface outline
         self.oled.draw_rectangle((0, 0, self.oled.width-1, self.oled.height-1), outline="white")
@@ -246,38 +242,32 @@ class OLED_TASK:
         self.is_convert_cpu_temp_to_fahrenheit = self.config_manager.get_value('OLED', 'screen3').get('cpu_temp_celsius_or_fahrenheit', False)
         self.is_convert_case_temp_to_fahrenheit = self.config_manager.get_value('OLED', 'screen3').get('case_temp_celsius_or_fahrenheit', False)
 
-        if self.screen3_interchange == 1:
-            # First row first column shows Pi temperature, first row second column shows PC temperature
-            self.oled.draw_text("Case", position=((0,0),(64,16)), directory="center", offset=(0, 0), font_size=self.font_size)
-            self.oled.draw_text("Pi", position=((65,0),(128,16)), directory="center", offset=(0, 0), font_size=self.font_size)
-            # Draw a dial in the center of each column of the second row
-            self.oled.draw_dial(center_xy=(32,34), radius=16, angle=(225, 315), directory="CW", tick_count=10, percentage=cpu_temperature, start_value=0, end_value=100)
-            self.oled.draw_dial(center_xy=(96,34), radius=16, angle=(225, 315), directory="CW", tick_count=10, percentage=pi_temperature, start_value=0, end_value=100)
-            # First row first column shows Pi temperature, first row second column shows CPU temperature
-            if self.is_convert_cpu_temp_to_fahrenheit:
-                self.oled.draw_text("{}℉".format(cpu_fahrenheit), position=((0,48),(64,64)), directory="center", offset=(0, 0), font_size=self.font_size)
-            else:
-                self.oled.draw_text("{}℃".format(cpu_temperature), position=((0,48),(64,64)), directory="center", offset=(0, 0), font_size=self.font_size)
-            if self.is_convert_case_temp_to_fahrenheit:
-                self.oled.draw_text("{}℉".format(pi_fahrenheit), position=((65,48),(128,64)), directory="center", offset=(0, 0), font_size=self.font_size)
-            else:
-                self.oled.draw_text("{}℃".format(round(pi_temperature)), position=((65,48),(128,64)), directory="center", offset=(0, 0), font_size=self.font_size)
+        # "Pi" column = Raspberry Pi CPU temperature, "Case" column = case sensor temperature
+        if self.is_convert_cpu_temp_to_fahrenheit:
+            cpu_text = "{}℉".format(round(cpu_temperature * 1.8 + 32))
         else:
-            # First row first column shows Pi temperature, first row second column shows PC temperature
-            self.oled.draw_text("Pi", position=((0,0),(64,16)), directory="center", offset=(0, 0), font_size=self.font_size)
-            self.oled.draw_text("Case", position=((65,0),(128,16)), directory="center", offset=(0, 0), font_size=self.font_size)
-            # Draw a dial in the center of each column of the second row
-            self.oled.draw_dial(center_xy=(32,34), radius=16, angle=(225, 315), directory="CW", tick_count=10, percentage=pi_temperature, start_value=0, end_value=100)
-            self.oled.draw_dial(center_xy=(96,34), radius=16, angle=(225, 315), directory="CW", tick_count=10, percentage=cpu_temperature, start_value=0, end_value=100)
-            # First row first column shows Pi temperature, first row second column shows CPU temperature
-            if self.is_convert_cpu_temp_to_fahrenheit:
-                self.oled.draw_text("{}℉".format(cpu_fahrenheit), position=((65,48),(128,64)), directory="center", offset=(0, 0), font_size=self.font_size)
-            else:
-                self.oled.draw_text("{}℃".format(round(pi_temperature)), position=((0,48),(64,64)), directory="center", offset=(0, 0), font_size=self.font_size)
-            if self.is_convert_case_temp_to_fahrenheit:
-                self.oled.draw_text("{}℉".format(pi_fahrenheit), position=((0,48),(64,64)), directory="center", offset=(0, 0), font_size=self.font_size)
-            else:
-                self.oled.draw_text("{}℃".format(cpu_temperature), position=((65,48),(128,64)), directory="center", offset=(0, 0), font_size=self.font_size)
+            cpu_text = "{}℃".format(round(cpu_temperature))
+        if self.is_convert_case_temp_to_fahrenheit:
+            case_text = "{}℉".format(round(case_temperature * 1.8 + 32))
+        else:
+            case_text = "{}℃".format(round(case_temperature))
+
+        if self.screen3_interchange == 1:
+            left_label,  left_dial_value,  left_text  = "Case", case_temperature, case_text
+            right_label, right_dial_value, right_text = "Pi",   cpu_temperature,  cpu_text
+        else:
+            left_label,  left_dial_value,  left_text  = "Pi",   cpu_temperature,  cpu_text
+            right_label, right_dial_value, right_text = "Case", case_temperature, case_text
+
+        # First row: column titles
+        self.oled.draw_text(left_label,  position=((0,0),(64,16)),   directory="center", offset=(0, 0), font_size=self.font_size)
+        self.oled.draw_text(right_label, position=((65,0),(128,16)), directory="center", offset=(0, 0), font_size=self.font_size)
+        # Second row: a dial in the center of each column
+        self.oled.draw_dial(center_xy=(32,34), radius=16, angle=(225, 315), directory="CW", tick_count=10, percentage=left_dial_value,  start_value=0, end_value=100)
+        self.oled.draw_dial(center_xy=(96,34), radius=16, angle=(225, 315), directory="CW", tick_count=10, percentage=right_dial_value, start_value=0, end_value=100)
+        # Third row: temperature values
+        self.oled.draw_text(left_text,  position=((0,48),(64,64)),   directory="center", offset=(0, 0), font_size=self.font_size)
+        self.oled.draw_text(right_text, position=((65,48),(128,64)), directory="center", offset=(0, 0), font_size=self.font_size)
         self.oled.show()
 
     def oled_ui_4_show(self, duty):
